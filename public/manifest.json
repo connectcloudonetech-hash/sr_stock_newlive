@@ -1,0 +1,23 @@
+{
+  "name": "SR INFOTECH ACCOUNTS",
+  "short_name": "SR ACCOUNTS",
+  "description": "Professional financial management and cash tracking system for SR INFOTECH.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E31E24",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/connectcloudonetech-hash/stock_management/809cc7da968c577cae0d110a9dc8c278ed65a2ae/image/sr_logo.svg",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/connectcloudonetech-hash/stock_management/refs/heads/main/image/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#E31E24">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/connectcloudonetech-hash/stock_management/809cc7da968c577cae0d110a9dc8c278ed65a2ae/image/sr_logo.svg">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/connectcloudonetech-hash/stock_management/refs/heads/main/image/logo-512.png">
+    <title>SR Accounts Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/index.css">
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('sr_fintrack_app_settings');
+          if (saved) {
+            var settings = JSON.parse(saved);
+            if (settings.appearance === 'dark') {
+              document.documentElement.classList.add('dark');
+              document.body.classList.add('dark');
+            } else {
+              document.documentElement.classList.remove('dark');
+              document.body.classList.remove('dark');
+            }
+          } else {
+            // Default to light if no settings found
+            document.documentElement.classList.remove('dark');
+            document.body.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SR Accounts">
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+        "react/": "https://esm.sh/react@^19.2.4/",
+        "react": "https://esm.sh/react@^19.2.4",
+        "recharts": "https://esm.sh/recharts@^3.7.0",
+        "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+        "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+        "jspdf": "https://esm.sh/jspdf@2.5.1",
+        "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.8.2",
+        "firebase/app": "https://esm.sh/firebase@11.1.0/app",
+        "firebase/firestore": "https://esm.sh/firebase@11.1.0/firestore",
+        "firebase/": "https://esm.sh/firebase@11.1.0/"
+      }
+    }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+      // Prevent pull-to-refresh on mobile browsers for a more native feel
+      document.body.addEventListener('touchmove', function(e) {
+        if (e.touches.length > 1) return;
+        // Allow scrolling inside elements with overflow
+        let target = e.target;
+        while (target && target !== document.body) {
+          if (target.scrollHeight > target.clientHeight) return;
+          target = target.parentNode;
+        }
+        e.preventDefault();
+      }, { passive: false });
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('SW registered:', reg);
+          }).catch(err => {
+            console.log('SW error:', err);
+          });
+        });
+      }
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
