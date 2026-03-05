@@ -105,23 +105,11 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Load transactions from localStorage on mount
+  // Load data from Supabase on mount
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       
-      let localTransactions: Transaction[] = [];
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        try {
-          localTransactions = JSON.parse(saved);
-        } catch (e) {
-          localTransactions = MOCK_TRANSACTIONS;
-        }
-      } else {
-        localTransactions = MOCK_TRANSACTIONS;
-      }
-
       if (isSupabaseConfigured()) {
         try {
           const { data: { user } } = await supabase!.auth.getUser();
@@ -134,33 +122,21 @@ const App: React.FC = () => {
               supabaseService.getAppSettings()
             ]);
 
-            // Merge logic: If cloud has data, we merge it with local data
-            // For transactions, we'll use IDs to avoid duplicates
-            if (cloudTransactions && cloudTransactions.length > 0) {
-              const mergedTransactions = [...cloudTransactions];
-              // Add local transactions that aren't in cloud yet
-              localTransactions.forEach(lt => {
-                if (!mergedTransactions.find(ct => ct.id === lt.id)) {
-                  mergedTransactions.push(lt);
-                }
+            if (cloudTransactions) setTransactions(cloudTransactions);
+            if (cloudContacts) setContacts(cloudContacts);
+            if (cloudProfile) setCompanyProfile(cloudProfile);
+            if (cloudSettings) {
+              setAppSettings({
+                appearance: cloudSettings.appearance,
+                appLockPin: cloudSettings.app_lock_pin,
+                isFingerprintEnabled: cloudSettings.is_fingerprint_enabled
               });
-              setTransactions(mergedTransactions);
-              
-              if (cloudContacts) setContacts(cloudContacts);
-              if (cloudProfile) setCompanyProfile(cloudProfile);
-              if (cloudSettings) {
-                setAppSettings({
-                  appearance: cloudSettings.appearance,
-                  appLockPin: cloudSettings.app_lock_pin,
-                  isFingerprintEnabled: cloudSettings.is_fingerprint_enabled
-                });
-                if (cloudSettings.app_lock_pin) setIsLocked(true);
-                const foundCurrency = CURRENCIES.find(c => c.code === cloudSettings.currency_code);
-                if (foundCurrency) setCurrency(foundCurrency);
-              }
-              setIsLoading(false);
-              return;
+              if (cloudSettings.app_lock_pin) setIsLocked(true);
+              const foundCurrency = CURRENCIES.find(c => c.code === cloudSettings.currency_code);
+              if (foundCurrency) setCurrency(foundCurrency);
             }
+            setIsLoading(false);
+            return;
           }
         } catch (error) {
           console.error('Error loading from Supabase:', error);
@@ -168,46 +144,11 @@ const App: React.FC = () => {
         }
       }
 
-      setTransactions(localTransactions);
-
-      const savedContacts = localStorage.getItem(CONTACTS_STORAGE_KEY);
-      if (savedContacts) {
-        try {
-          setContacts(JSON.parse(savedContacts));
-        } catch (e) {
-          setContacts(MOCK_CONTACTS);
-        }
-      } else {
-        setContacts(MOCK_CONTACTS);
-      }
-
-      const savedCurrency = localStorage.getItem(CURRENCY_STORAGE_KEY);
-      if (savedCurrency) {
-        try {
-          setCurrency(JSON.parse(savedCurrency));
-        } catch (e) {
-          setCurrency(DEFAULT_CURRENCY);
-        }
-      }
-
-      const savedProfile = localStorage.getItem(COMPANY_PROFILE_STORAGE_KEY);
-      if (savedProfile) {
-        try {
-          setCompanyProfile(JSON.parse(savedProfile));
-        } catch (e) {
-          setCompanyProfile(DEFAULT_COMPANY_PROFILE);
-        }
-      }
-
-      const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (savedSettings) {
-        try {
-          const settings = JSON.parse(savedSettings);
-          if (settings.appearance === 'default') settings.appearance = 'light';
-          setAppSettings(settings);
-          if (settings.appLockPin) setIsLocked(true);
-        } catch (e) { }
-      }
+      // Fallback to mock data if not logged in
+      setTransactions(MOCK_TRANSACTIONS);
+      setContacts(MOCK_CONTACTS);
+      setCurrency(DEFAULT_CURRENCY);
+      setCompanyProfile(DEFAULT_COMPANY_PROFILE);
       
       setIsLoading(false);
     };
@@ -215,50 +156,42 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // Persist transactions to localStorage and Supabase on every change
+  // Sync transactions to Supabase on every change
   useEffect(() => {
     if (isLoading) return;
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(transactions));
     
     if (isSupabaseConfigured() && cloudStatus === 'connected' && transactions.length > 0) {
-      // We only sync if there's data to avoid clearing cloud data on initial load if local is empty
-      // In a real app, we'd have more sophisticated sync logic
       transactions.forEach(t => supabaseService.saveTransaction(t).catch(console.error));
     }
-  }, [transactions, isLoading]);
+  }, [transactions, isLoading, cloudStatus]);
 
-  // Persist contacts to localStorage and Supabase on every change
+  // Sync contacts to Supabase on every change
   useEffect(() => {
     if (isLoading) return;
-    localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(contacts));
     
     if (isSupabaseConfigured() && cloudStatus === 'connected' && contacts.length > 0) {
       contacts.forEach(c => supabaseService.saveContact(c).catch(console.error));
     }
-  }, [contacts, isLoading]);
+  }, [contacts, isLoading, cloudStatus]);
 
-  // Persist currency and settings to localStorage and Supabase on every change
+  // Sync currency and settings to Supabase on every change
   useEffect(() => {
     if (isLoading) return;
-    localStorage.setItem(CURRENCY_STORAGE_KEY, JSON.stringify(currency));
     
     if (isSupabaseConfigured() && cloudStatus === 'connected') {
       supabaseService.saveAppSettings(appSettings, currency.code).catch(console.error);
     }
-  }, [currency, appSettings, isLoading]);
+  }, [currency, appSettings, isLoading, cloudStatus]);
 
   useEffect(() => {
     if (isLoading) return;
-    localStorage.setItem(COMPANY_PROFILE_STORAGE_KEY, JSON.stringify(companyProfile));
     
     if (isSupabaseConfigured() && cloudStatus === 'connected' && companyProfile.name !== DEFAULT_COMPANY_PROFILE.name) {
       supabaseService.saveCompanyProfile(companyProfile).catch(console.error);
     }
-  }, [companyProfile, isLoading]);
+  }, [companyProfile, isLoading, cloudStatus]);
 
   useEffect(() => {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(appSettings));
-    
     // Apply appearance
     const root = window.document.documentElement;
     const body = window.document.body;
