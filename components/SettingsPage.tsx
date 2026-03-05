@@ -49,6 +49,19 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   const [tempProfile, setTempProfile] = useState<CompanyProfile>(companyProfile);
   const [pinInput, setPinInput] = useState('');
   const [isSettingPin, setIsSettingPin] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [supabaseUser, setSupabaseUser] = useState<any>(null);
+
+  React.useEffect(() => {
+    if (isSupabaseConfigured() && supabase?.auth) {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        setSupabaseUser(user);
+      });
+    }
+  }, []);
 
   const handleProfileSave = () => {
     onUpdateCompany(tempProfile);
@@ -527,45 +540,118 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                     <span className="text-[11px] font-bold text-slate-500 uppercase">Database</span>
                     <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase">Supabase (PostgreSQL)</span>
                   </div>
+                  {supabaseUser && (
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase">Account</span>
+                      <span className="text-[11px] font-black text-emerald-600 uppercase truncate max-w-[150px]">{supabaseUser.email}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {!isSupabaseConfigured() && (
-                <div className="text-left p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl">
-                  <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 leading-relaxed">
-                    To enable cloud sync, please set the <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">VITE_SUPABASE_URL</code> and <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">VITE_SUPABASE_ANON_KEY</code> environment variables in your project settings.
-                  </p>
+                <div className="space-y-4">
+                  <div className="text-left p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl">
+                    <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 leading-relaxed">
+                      To enable cloud sync, please use the Cloud icon in the top navigation bar to configure your Supabase URL and Key.
+                    </p>
+                  </div>
                 </div>
               )}
 
               {isSupabaseConfigured() && (
-                <div className="space-y-4">
-                  <button 
-                    onClick={async () => {
-                      if (!supabase?.auth) return;
-                      const { data: { user } } = await supabase.auth.getUser();
-                      if (user) {
-                        await supabase.auth.signOut();
+                <div className="space-y-6 text-left">
+                  {supabaseUser ? (
+                    <button 
+                      onClick={async () => {
+                        setIsAuthLoading(true);
+                        await supabase!.auth.signOut();
+                        setSupabaseUser(null);
+                        setIsAuthLoading(false);
                         window.location.reload();
-                      } else {
-                        // For simplicity, we'll use a simple email/password or anonymous for now
-                        // In a real app, you'd show a proper login form
-                        const email = prompt('Enter your cloud email:');
-                        const password = prompt('Enter your cloud password:');
-                        if (email && password) {
-                          const { error } = await supabase.auth.signInWithPassword({ email, password });
-                          if (error) alert(error.message);
-                          else window.location.reload();
-                        }
-                      }
-                    }}
-                    className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Shield size={16} />
-                    Manage Cloud Session
-                  </button>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    You must be signed in to Supabase Auth for RLS policies to allow syncing.
+                      }}
+                      disabled={isAuthLoading}
+                      className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <LogOut size={16} />
+                      {isAuthLoading ? 'Signing Out...' : 'Sign Out from Cloud'}
+                    </button>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                        <button 
+                          onClick={() => setAuthMode('login')}
+                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${authMode === 'login' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                        >
+                          Login
+                        </button>
+                        <button 
+                          onClick={() => setAuthMode('signup')}
+                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${authMode === 'signup' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                        >
+                          Sign Up
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input 
+                            type="email" 
+                            placeholder="Cloud Email"
+                            value={authEmail}
+                            onChange={(e) => setAuthEmail(e.target.value)}
+                            className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#E31E24] transition-all"
+                          />
+                        </div>
+                        <div className="relative">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input 
+                            type="password" 
+                            placeholder="Cloud Password"
+                            value={authPassword}
+                            onChange={(e) => setAuthPassword(e.target.value)}
+                            className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#E31E24] transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={async () => {
+                          if (!authEmail || !authPassword) {
+                            alert('Please enter both email and password');
+                            return;
+                          }
+                          setIsAuthLoading(true);
+                          try {
+                            const { data, error } = authMode === 'login' 
+                              ? await supabase!.auth.signInWithPassword({ email: authEmail, password: authPassword })
+                              : await supabase!.auth.signUp({ email: authEmail, password: authPassword });
+                            
+                            if (error) throw error;
+                            if (data.user) {
+                              setSupabaseUser(data.user);
+                              if (authMode === 'signup') alert('Account created! Please check your email for verification if required.');
+                              window.location.reload();
+                            }
+                          } catch (err: any) {
+                            alert(err.message);
+                          } finally {
+                            setIsAuthLoading(false);
+                          }
+                        }}
+                        disabled={isAuthLoading}
+                        className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <Shield size={16} />
+                        {isAuthLoading ? 'Processing...' : (authMode === 'login' ? 'Sign In to Cloud' : 'Create Cloud Account')}
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">
+                    {supabaseUser 
+                      ? 'You are currently synced with the cloud.' 
+                      : 'You must be signed in to Supabase Auth for RLS policies to allow syncing.'}
                   </p>
                 </div>
               )}
