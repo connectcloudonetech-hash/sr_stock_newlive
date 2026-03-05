@@ -10,7 +10,7 @@ import { User, UserRole, Currency, CompanyProfile, AppSettings } from '../types'
 import AdminPage from './AdminPage';
 import { CURRENCIES } from '../constants';
 import { Camera, X as XIcon } from 'lucide-react';
-import { isSupabaseConfigured } from '../services/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../services/supabaseClient';
 
 interface SettingsPageProps {
   currentUser: User;
@@ -534,6 +534,38 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 <div className="text-left p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl">
                   <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 leading-relaxed">
                     To enable cloud sync, please set the <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">VITE_SUPABASE_URL</code> and <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">VITE_SUPABASE_ANON_KEY</code> environment variables in your project settings.
+                  </p>
+                </div>
+              )}
+
+              {isSupabaseConfigured() && (
+                <div className="space-y-4">
+                  <button 
+                    onClick={async () => {
+                      if (!supabase?.auth) return;
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (user) {
+                        await supabase.auth.signOut();
+                        window.location.reload();
+                      } else {
+                        // For simplicity, we'll use a simple email/password or anonymous for now
+                        // In a real app, you'd show a proper login form
+                        const email = prompt('Enter your cloud email:');
+                        const password = prompt('Enter your cloud password:');
+                        if (email && password) {
+                          const { error } = await supabase.auth.signInWithPassword({ email, password });
+                          if (error) alert(error.message);
+                          else window.location.reload();
+                        }
+                      }
+                    }}
+                    className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Shield size={16} />
+                    Manage Cloud Session
+                  </button>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    You must be signed in to Supabase Auth for RLS policies to allow syncing.
                   </p>
                 </div>
               )}

@@ -14,9 +14,9 @@ import LockScreen from './components/LockScreen';
 import TransactionFilters, { FilterState } from './components/TransactionFilters';
 import { Transaction, TransactionType, DashboardStats, User, UserRole, Contact, Currency, CompanyProfile, AppSettings } from './types';
 import { INITIAL_USERS, DEFAULT_CURRENCY, CURRENCIES, NAMES, PARTICULARS, MOCK_TRANSACTIONS, MOCK_CONTACTS, LOGO_URL, DEFAULT_COMPANY_PROFILE } from './constants';
-import { History, Download, SearchX, Plus, ChevronRight, Inbox, Filter, ShieldCheck, Users } from 'lucide-react';
+import { History, Download, SearchX, Plus, ChevronRight, Inbox, Filter, ShieldCheck, Users, Cloud, CloudOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabaseService } from './services/supabaseService';
-import { isSupabaseConfigured } from './services/supabaseClient';
+import { isSupabaseConfigured, supabase, updateSupabaseConfig, clearSupabaseConfig } from './services/supabaseClient';
 
 const LOCAL_STORAGE_KEY = 'sr_fintrack_local_data';
 const CONTACTS_STORAGE_KEY = 'sr_fintrack_contacts_data';
@@ -49,6 +49,10 @@ const App: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [initialType, setInitialType] = useState<TransactionType>(TransactionType.EXPENSE);
   const [isFabOpen, setIsFabOpen] = useState(false);
+  const [showCloudModal, setShowCloudModal] = useState(false);
+  const [cloudConfig, setCloudConfig] = useState({ url: '', key: '' });
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState<'connected' | 'offline' | 'error'>('offline');
 
   const [availableNames] = useState<string[]>(NAMES);
   const [availableParticulars] = useState<string[]>(PARTICULARS);
@@ -79,53 +83,92 @@ const App: React.FC = () => {
         localStorage.removeItem(USER_STORAGE_KEY);
       }
     }
+
+    // Supabase Auth Listener
+    if (isSupabaseConfigured() && supabase?.auth) {
+      try {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (session) {
+            setCloudStatus('connected');
+            console.log('Supabase session active:', session.user.email);
+          } else {
+            setCloudStatus('offline');
+          }
+        });
+        return () => subscription?.unsubscribe();
+      } catch (e) {
+        console.error('Supabase auth listener error:', e);
+        setCloudStatus('error');
+      }
+    } else {
+      setCloudStatus('offline');
+    }
   }, []);
 
   // Load transactions from localStorage on mount
   useEffect(() => {
     const loadData = async () => {
-      if (isSupabaseConfigured()) {
-        try {
-          const [cloudTransactions, cloudContacts, cloudProfile, cloudSettings] = await Promise.all([
-            supabaseService.getTransactions(),
-            supabaseService.getContacts(),
-            supabaseService.getCompanyProfile(),
-            supabaseService.getAppSettings()
-          ]);
-
-          if (cloudTransactions) setTransactions(cloudTransactions);
-          if (cloudContacts) setContacts(cloudContacts);
-          if (cloudProfile) setCompanyProfile(cloudProfile);
-          if (cloudSettings) {
-            setAppSettings({
-              appearance: cloudSettings.appearance,
-              appLockPin: cloudSettings.app_lock_pin,
-              isFingerprintEnabled: cloudSettings.is_fingerprint_enabled
-            });
-            if (cloudSettings.app_lock_pin) setIsLocked(true);
-            
-            const foundCurrency = CURRENCIES.find(c => c.code === cloudSettings.currency_code);
-            if (foundCurrency) setCurrency(foundCurrency);
-          }
-          
-          setIsLoading(false);
-          return;
-        } catch (error) {
-          console.error('Error loading from Supabase:', error);
-          // Fallback to localStorage
-        }
-      }
-
+      setIsLoading(true);
+      
+      let localTransactions: Transaction[] = [];
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (saved) {
         try {
-          setTransactions(JSON.parse(saved));
+          localTransactions = JSON.parse(saved);
         } catch (e) {
-          setTransactions(MOCK_TRANSACTIONS);
+          localTransactions = MOCK_TRANSACTIONS;
         }
       } else {
-        setTransactions(MOCK_TRANSACTIONS);
+        localTransactions = MOCK_TRANSACTIONS;
       }
+
+      if (isSupabaseConfigured()) {
+        try {
+          const { data: { user } } = await supabase!.auth.getUser();
+          if (user) {
+            setCloudStatus('connected');
+            const [cloudTransactions, cloudContacts, cloudProfile, cloudSettings] = await Promise.all([
+              supabaseService.getTransactions(),
+              supabaseService.getContacts(),
+              supabaseService.getCompanyProfile(),
+              supabaseService.getAppSettings()
+            ]);
+
+            // Merge logic: If cloud has data, we merge it with local data
+            // For transactions, we'll use IDs to avoid duplicates
+            if (cloudTransactions && cloudTransactions.length > 0) {
+              const mergedTransactions = [...cloudTransactions];
+              // Add local transactions that aren't in cloud yet
+              localTransactions.forEach(lt => {
+                if (!mergedTransactions.find(ct => ct.id === lt.id)) {
+                  mergedTransactions.push(lt);
+                }
+              });
+              setTransactions(mergedTransactions);
+              
+              if (cloudContacts) setContacts(cloudContacts);
+              if (cloudProfile) setCompanyProfile(cloudProfile);
+              if (cloudSettings) {
+                setAppSettings({
+                  appearance: cloudSettings.appearance,
+                  appLockPin: cloudSettings.app_lock_pin,
+                  isFingerprintEnabled: cloudSettings.is_fingerprint_enabled
+                });
+                if (cloudSettings.app_lock_pin) setIsLocked(true);
+                const foundCurrency = CURRENCIES.find(c => c.code === cloudSettings.currency_code);
+                if (foundCurrency) setCurrency(foundCurrency);
+              }
+              setIsLoading(false);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error loading from Supabase:', error);
+          setCloudStatus('error');
+        }
+      }
+
+      setTransactions(localTransactions);
 
       const savedContacts = localStorage.getItem(CONTACTS_STORAGE_KEY);
       if (savedContacts) {
@@ -174,40 +217,44 @@ const App: React.FC = () => {
 
   // Persist transactions to localStorage and Supabase on every change
   useEffect(() => {
+    if (isLoading) return;
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(transactions));
     
-    if (isSupabaseConfigured() && transactions.length > 0) {
+    if (isSupabaseConfigured() && cloudStatus === 'connected' && transactions.length > 0) {
       // We only sync if there's data to avoid clearing cloud data on initial load if local is empty
       // In a real app, we'd have more sophisticated sync logic
-      transactions.forEach(t => supabaseService.saveTransaction(t));
+      transactions.forEach(t => supabaseService.saveTransaction(t).catch(console.error));
     }
-  }, [transactions]);
+  }, [transactions, isLoading]);
 
   // Persist contacts to localStorage and Supabase on every change
   useEffect(() => {
+    if (isLoading) return;
     localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(contacts));
     
-    if (isSupabaseConfigured() && contacts.length > 0) {
-      contacts.forEach(c => supabaseService.saveContact(c));
+    if (isSupabaseConfigured() && cloudStatus === 'connected' && contacts.length > 0) {
+      contacts.forEach(c => supabaseService.saveContact(c).catch(console.error));
     }
-  }, [contacts]);
+  }, [contacts, isLoading]);
 
   // Persist currency and settings to localStorage and Supabase on every change
   useEffect(() => {
+    if (isLoading) return;
     localStorage.setItem(CURRENCY_STORAGE_KEY, JSON.stringify(currency));
     
-    if (isSupabaseConfigured()) {
-      supabaseService.saveAppSettings(appSettings, currency.code);
+    if (isSupabaseConfigured() && cloudStatus === 'connected') {
+      supabaseService.saveAppSettings(appSettings, currency.code).catch(console.error);
     }
-  }, [currency, appSettings]);
+  }, [currency, appSettings, isLoading]);
 
   useEffect(() => {
+    if (isLoading) return;
     localStorage.setItem(COMPANY_PROFILE_STORAGE_KEY, JSON.stringify(companyProfile));
     
-    if (isSupabaseConfigured() && companyProfile.name !== DEFAULT_COMPANY_PROFILE.name) {
-      supabaseService.saveCompanyProfile(companyProfile);
+    if (isSupabaseConfigured() && cloudStatus === 'connected' && companyProfile.name !== DEFAULT_COMPANY_PROFILE.name) {
+      supabaseService.saveCompanyProfile(companyProfile).catch(console.error);
     }
-  }, [companyProfile]);
+  }, [companyProfile, isLoading]);
 
   useEffect(() => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(appSettings));
@@ -287,6 +334,53 @@ const App: React.FC = () => {
     showToast('Password updated successfully');
   };
 
+  const handleManualSync = async () => {
+    if (!isSupabaseConfigured()) {
+      setShowCloudModal(true);
+      return;
+    }
+
+    setIsCloudSyncing(true);
+    try {
+      const { data: { user } } = await supabase!.auth.getUser();
+      if (!user) {
+        showToast('Please sign in to cloud first', 'error');
+        setView('settings');
+        return;
+      }
+
+      showToast('Syncing with cloud...', 'success');
+      
+      // Sync all data
+      await Promise.all([
+        ...transactions.map(t => supabaseService.saveTransaction(t)),
+        ...contacts.map(c => supabaseService.saveContact(c)),
+        supabaseService.saveCompanyProfile(companyProfile),
+        supabaseService.saveAppSettings(appSettings, currency.code)
+      ]);
+
+      showToast('Cloud sync complete');
+      setCloudStatus('connected');
+    } catch (err) {
+      console.error('Manual sync error:', err);
+      showToast('Sync failed. Check connection.', 'error');
+      setCloudStatus('error');
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
+
+  const handleSaveCloudConfig = () => {
+    if (cloudConfig.url && cloudConfig.key) {
+      updateSupabaseConfig(cloudConfig.url, cloudConfig.key);
+      setShowCloudModal(false);
+      showToast('Cloud configuration updated');
+      window.location.reload();
+    } else {
+      showToast('Please enter both URL and Key', 'error');
+    }
+  };
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const matchesType = filters.type === 'All' || t.type === filters.type;
@@ -344,7 +438,7 @@ const App: React.FC = () => {
 
   const handleDeleteTransaction = (id: string) => {
     setTransactions(transactions.filter(t => t.id !== id));
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && cloudStatus === 'connected') {
       supabaseService.deleteTransaction(id).catch(console.error);
     }
     setDeleteConfirmId(null);
@@ -403,9 +497,52 @@ const App: React.FC = () => {
         currentUser={currentUser} 
         onLogout={handleLogout} 
         companyName={companyProfile.name}
+        cloudStatus={cloudStatus}
+        onCloudClick={() => setShowCloudModal(true)}
       />
 
       <main className="flex-1 overflow-y-auto px-4 pt-20 pb-32 no-scrollbar">
+        {/* Connectivity Banner */}
+        {!isSupabaseConfigured() && (
+          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-2xl flex items-center justify-between animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-amber-600">
+                <CloudOff size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-amber-900 dark:text-amber-400 uppercase tracking-tight">Offline Mode Active</p>
+                <p className="text-[10px] font-bold text-amber-600/70 dark:text-amber-400/50 uppercase tracking-widest">Data saved locally only</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowCloudModal(true)}
+              className="px-4 py-2 bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg shadow-amber-200 dark:shadow-none"
+            >
+              Connect Cloud
+            </button>
+          </div>
+        )}
+
+        {isSupabaseConfigured() && cloudStatus !== 'connected' && (
+          <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 rounded-2xl flex items-center justify-between animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-rose-100 dark:bg-rose-900/30 rounded-xl flex items-center justify-center text-rose-600">
+                <AlertCircle size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-rose-900 dark:text-rose-400 uppercase tracking-tight">Cloud Session Expired</p>
+                <p className="text-[10px] font-bold text-rose-600/70 dark:text-rose-400/50 uppercase tracking-widest">Sign in to sync data</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setView('settings')}
+              className="px-4 py-2 bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg shadow-rose-200 dark:shadow-none"
+            >
+              Sign In
+            </button>
+          </div>
+        )}
+
         {view === 'dashboard' && (
           <div className="space-y-6 animate-slide-up">
             <header className="flex items-center justify-between">
@@ -413,9 +550,26 @@ const App: React.FC = () => {
                 <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Overview</h1>
                 <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Financial Summary</p>
               </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full border border-emerald-100 dark:border-emerald-900/30">
-                <ShieldCheck size={12} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Secure</span>
+              <div className="flex items-center gap-2">
+                {isSupabaseConfigured() && (
+                  <button 
+                    onClick={handleManualSync}
+                    disabled={isCloudSyncing}
+                    className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 ${
+                      isCloudSyncing 
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 animate-pulse' 
+                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 active:scale-95'
+                    }`}
+                    title="Sync with Cloud"
+                  >
+                    <RefreshCw size={16} className={isCloudSyncing ? 'animate-spin' : ''} />
+                    <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Sync</span>
+                  </button>
+                )}
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full border border-emerald-100 dark:border-emerald-900/30">
+                  <ShieldCheck size={12} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Secure</span>
+                </div>
               </div>
             </header>
 
@@ -559,7 +713,7 @@ const App: React.FC = () => {
               onUpdateContact={(updated) => { setContacts(contacts.map(c => c.id === updated.id ? updated : c)); showToast('Contact updated'); }}
               onRemoveContact={(id) => { 
                 setContacts(contacts.filter(c => c.id !== id)); 
-                if (isSupabaseConfigured()) {
+                if (isSupabaseConfigured() && cloudStatus === 'connected') {
                   supabaseService.deleteContact(id).catch(console.error);
                 }
                 showToast('Contact removed', 'error'); 
@@ -674,6 +828,59 @@ const App: React.FC = () => {
       </div>
 
       {/* Modals */}
+      {showCloudModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setShowCloudModal(false)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl animate-scale-in">
+            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Cloud className="text-[#E31E24]" size={32} />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white text-center tracking-tight mb-2">Cloud Configuration</h2>
+            <p className="text-slate-400 text-xs font-bold text-center uppercase tracking-widest mb-8">Supabase Integration</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-1.5 block">Project URL</label>
+                <input 
+                  type="text" 
+                  value={cloudConfig.url}
+                  onChange={(e) => setCloudConfig({ ...cloudConfig, url: e.target.value })}
+                  placeholder="https://your-project.supabase.co"
+                  className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#E31E24] transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-1.5 block">Anon Key</label>
+                <input 
+                  type="password" 
+                  value={cloudConfig.key}
+                  onChange={(e) => setCloudConfig({ ...cloudConfig, key: e.target.value })}
+                  placeholder="your-anon-key"
+                  className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#E31E24] transition-all"
+                />
+              </div>
+              
+              <div className="pt-4 flex flex-col gap-3">
+                <button 
+                  onClick={handleSaveCloudConfig}
+                  className="w-full py-4 bg-[#E31E24] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-red-100 dark:shadow-none active:scale-95 transition-all"
+                >
+                  Save & Connect
+                </button>
+                {isSupabaseConfigured() && (
+                  <button 
+                    onClick={() => { clearSupabaseConfig(); setShowCloudModal(false); window.location.reload(); }}
+                    className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-2xl font-black text-xs uppercase tracking-[0.2em] active:scale-95 transition-all"
+                  >
+                    Clear Config
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAddForm && (
         <div className="fixed inset-0 z-[500] flex flex-col justify-end">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => { setShowAddForm(false); setEditingTransaction(null); }} />

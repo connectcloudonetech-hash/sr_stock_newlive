@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet, FileText, Shield, LogOut, BarChart3, Users, Settings, UserCircle } from 'lucide-react';
+import { Wallet, FileText, Shield, LogOut, BarChart3, Users, Settings, UserCircle, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { LOGO_URL } from '../constants';
 
@@ -9,9 +9,19 @@ interface NavbarProps {
   currentUser: User;
   onLogout: () => void;
   companyName: string;
+  cloudStatus?: 'connected' | 'offline' | 'error';
+  onCloudClick?: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onNavChange, activeView, currentUser, onLogout, companyName }) => {
+const Navbar: React.FC<NavbarProps> = ({ 
+  onNavChange, 
+  activeView, 
+  currentUser, 
+  onLogout, 
+  companyName,
+  cloudStatus = 'offline',
+  onCloudClick
+}) => {
   const navItems = [
     { id: 'dashboard', label: 'Home', icon: <Wallet size={22} /> },
     { id: 'statement', label: 'History', icon: <FileText size={22} /> },
@@ -35,6 +45,19 @@ const Navbar: React.FC<NavbarProps> = ({ onNavChange, activeView, currentUser, o
         </div>
 
         <div className="flex items-center gap-3">
+          <button 
+            onClick={onCloudClick}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+              cloudStatus === 'connected' 
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' 
+                : cloudStatus === 'error'
+                ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600'
+                : 'bg-slate-50 dark:bg-slate-800 text-slate-400'
+            }`}
+            title={cloudStatus === 'connected' ? 'Cloud Connected' : 'Cloud Offline'}
+          >
+            {cloudStatus === 'connected' ? <Cloud size={18} /> : <CloudOff size={18} />}
+          </button>
           <button 
             onClick={() => onNavChange('profile')}
             className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
