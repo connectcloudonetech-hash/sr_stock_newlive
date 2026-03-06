@@ -871,7 +871,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {view === 'settings' && currentUser?.role === UserRole.ADMIN && (
+        {view === 'settings' && (
           <div className="animate-slide-up">
             <SettingsPage 
               currentUser={currentUser!}
