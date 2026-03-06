@@ -27,8 +27,8 @@ const Navbar: React.FC<NavbarProps> = ({
     { id: 'statement', label: 'History', icon: <FileText size={22} /> },
     { id: 'reports', label: 'Reports', icon: <BarChart3 size={22} /> },
     { id: 'contacts', label: 'Contacts', icon: <Users size={22} /> },
-    { id: 'settings', label: 'Settings', icon: <Settings size={22} />, adminOnly: true },
-  ].filter(item => !item.adminOnly || currentUser.role === UserRole.ADMIN);
+    { id: 'settings', label: 'Settings', icon: <Settings size={22} /> },
+  ];
 
   return (
     <>

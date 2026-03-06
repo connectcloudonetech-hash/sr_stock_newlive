@@ -97,7 +97,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       title: 'Company Profile', 
       subtitle: 'Edit business details', 
       icon: <Building2 size={20} />,
-      color: 'bg-blue-50 text-blue-600'
+      color: 'bg-blue-50 text-blue-600',
+      adminOnly: true
     },
     { 
       id: 'users', 
@@ -112,14 +113,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       title: 'Currency', 
       subtitle: `Default: ${currency.code} (${currency.symbol})`, 
       icon: <Coins size={20} />,
-      color: 'bg-amber-50 text-amber-600'
+      color: 'bg-amber-50 text-amber-600',
+      adminOnly: true
     },
     { 
       id: 'data', 
       title: 'Data Control', 
       subtitle: 'Backup & Maintenance', 
       icon: <Database size={20} />,
-      color: 'bg-purple-50 text-purple-600'
+      color: 'bg-purple-50 text-purple-600',
+      adminOnly: true
     },
     { 
       id: 'appearance', 
@@ -147,7 +150,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       title: 'Cloud Sync', 
       subtitle: isSupabaseConfigured() ? 'Connected to Supabase' : 'Local Storage Only', 
       icon: isSupabaseConfigured() ? <Cloud size={20} /> : <CloudOff size={20} />,
-      color: isSupabaseConfigured() ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+      color: isSupabaseConfigured() ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400',
+      adminOnly: true
     },
     { 
       id: 'logout', 
