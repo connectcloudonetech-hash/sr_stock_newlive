@@ -9,7 +9,7 @@ import {
 
 interface ReportPageProps {
   transactions: Transaction[];
-  onExport: () => void;
+  onExport: (data: Transaction[]) => void;
   currencySymbol: string;
   companyName: string;
 }
@@ -78,7 +78,7 @@ const ReportPage: React.FC<ReportPageProps> = ({ transactions, onExport, currenc
             <p className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest">Analysis & Export</p>
           </div>
           <button 
-            onClick={onExport} 
+            onClick={() => onExport(filteredData)} 
             className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white shadow-sm active:scale-95 transition-all"
           >
             <Download size={20} />
