@@ -235,12 +235,26 @@ const App: React.FC = () => {
       // Fallback to local storage or mock data if not logged in
       const savedTransactions = localStorage.getItem(LOCAL_STORAGE_KEY);
       const savedContacts = localStorage.getItem(CONTACTS_STORAGE_KEY);
+      const savedProfile = localStorage.getItem(COMPANY_PROFILE_STORAGE_KEY);
+      const savedCurrency = localStorage.getItem(CURRENCY_STORAGE_KEY);
+      const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      const savedAllUsers = localStorage.getItem('sr_fintrack_all_users');
 
-      if (!savedTransactions) setTransactions(MOCK_TRANSACTIONS);
-      if (!savedContacts) setContacts(MOCK_CONTACTS);
+      if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
+      else setTransactions(MOCK_TRANSACTIONS);
+
+      if (savedContacts) setContacts(JSON.parse(savedContacts));
+      else setContacts(MOCK_CONTACTS);
       
-      setCurrency(DEFAULT_CURRENCY);
-      setCompanyProfile(DEFAULT_COMPANY_PROFILE);
+      if (savedProfile) setCompanyProfile(JSON.parse(savedProfile));
+      else setCompanyProfile(DEFAULT_COMPANY_PROFILE);
+
+      if (savedCurrency) setCurrency(JSON.parse(savedCurrency));
+      else setCurrency(DEFAULT_CURRENCY);
+
+      if (savedSettings) setAppSettings(JSON.parse(savedSettings));
+
+      if (savedAllUsers) setAllUsers(JSON.parse(savedAllUsers));
       
       setIsLoading(false);
     };
