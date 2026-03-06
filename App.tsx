@@ -134,11 +134,12 @@ const App: React.FC = () => {
           const { data: { user } } = await supabase!.auth.getUser();
           if (user) {
             setCloudStatus('connected');
-            const [cloudTransactions, cloudContacts, cloudProfile, cloudSettings] = await Promise.all([
+            const [cloudTransactions, cloudContacts, cloudProfile, cloudSettings, cloudTeam] = await Promise.all([
               supabaseService.getTransactions(),
               supabaseService.getContacts(),
               supabaseService.getCompanyProfile(),
-              supabaseService.getAppSettings()
+              supabaseService.getAppSettings(),
+              supabaseService.getTeamMembers()
             ]);
 
             if (cloudTransactions && cloudTransactions.length > 0) {
@@ -148,6 +149,10 @@ const App: React.FC = () => {
             if (cloudContacts && cloudContacts.length > 0) {
               setContacts(cloudContacts);
               localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(cloudContacts));
+            }
+            if (cloudTeam && cloudTeam.length > 0) {
+              setAllUsers(cloudTeam);
+              localStorage.setItem('sr_fintrack_all_users', JSON.stringify(cloudTeam));
             }
             if (cloudProfile) setCompanyProfile(cloudProfile);
             if (cloudSettings) {
@@ -228,7 +233,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isLoading) return;
     
-    if (isSupabaseConfigured() && cloudStatus === 'connected' && companyProfile.name !== DEFAULT_COMPANY_PROFILE.name) {
+    if (isSupabaseConfigured() && cloudStatus === 'connected') {
       supabaseService.saveCompanyProfile(companyProfile).catch(console.error);
     }
   }, [companyProfile, isLoading, cloudStatus]);
@@ -305,6 +310,10 @@ const App: React.FC = () => {
     
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
     localStorage.setItem('sr_fintrack_all_users', JSON.stringify(updatedAllUsers));
+
+    if (isSupabaseConfigured() && cloudStatus === 'connected') {
+      supabaseService.saveTeamMember(updatedUser).catch(console.error);
+    }
     
     showToast('Password updated successfully');
   };
@@ -766,8 +775,28 @@ const App: React.FC = () => {
               onUpdateCompany={(p) => { setCompanyProfile(p); showToast('Company profile updated'); }}
               appSettings={appSettings}
               onUpdateSettings={(s) => { setAppSettings(s); showToast('Settings updated'); }}
-              onAddUser={(u) => { setAllUsers([...allUsers, { ...u, id: Math.random().toString(36).substr(2, 9) }]); showToast('User added'); }} 
-              onRemoveUser={(id) => { setAllUsers(allUsers.filter(u => u.id !== id)); showToast('User removed', 'error'); }} 
+              onAddUser={(u) => { 
+                const newId = Math.random().toString(36).substr(2, 9);
+                const newUser = { ...u, id: newId };
+                const updatedUsers = [...allUsers, newUser];
+                setAllUsers(updatedUsers); 
+                localStorage.setItem('sr_fintrack_all_users', JSON.stringify(updatedUsers));
+
+                if (isSupabaseConfigured() && cloudStatus === 'connected') {
+                  supabaseService.saveTeamMember(newUser).catch(console.error);
+                }
+                showToast('User added'); 
+              }} 
+              onRemoveUser={(id) => { 
+                const updatedUsers = allUsers.filter(u => u.id !== id);
+                setAllUsers(updatedUsers); 
+                localStorage.setItem('sr_fintrack_all_users', JSON.stringify(updatedUsers));
+
+                if (isSupabaseConfigured() && cloudStatus === 'connected') {
+                  supabaseService.deleteTeamMember(id).catch(console.error);
+                }
+                showToast('User removed', 'error'); 
+              }} 
               onLogout={handleLogout}
               onBackup={() => {
                 const data = {
