@@ -28,7 +28,9 @@ export const downloadTransactionsAsExcel = (transactions: Transaction[], currenc
     ['Date', 'Entity Name', 'Particular', 'Category', 'Type', `Amount (${currencyCode})`]
   ];
 
-  const rows = transactions.map(t => [
+  const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const rows = sortedTransactions.map(t => [
     t.date,
     t.name || '-',
     t.particular,

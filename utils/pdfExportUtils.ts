@@ -67,7 +67,9 @@ export const generateFinancialPDF = (transactions: Transaction[], options: PDFEx
   doc.text(`${currencyCode} ${stats.balance.toLocaleString()}`, 145, 72);
 
   // 1. Main Transaction Table
-  const tableData = transactions.map(t => [
+  const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  
+  const tableData = sortedTransactions.map(t => [
     t.date,
     t.name,
     t.particular,
@@ -217,28 +219,6 @@ export const generateFinancialPDF = (transactions: Transaction[], options: PDFEx
     },
     margin: { left: 15, right: 15 }
   });
-
-  // Footer Section
-  const pageCount = doc.getNumberOfPages();
-  for(let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    
-    // Bottom Border
-    doc.setDrawColor(227, 30, 36);
-    doc.setLineWidth(0.5);
-    doc.line(15, 275, 195, 275);
-    
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184);
-    doc.setFont('helvetica', 'normal');
-    
-    const footerY = 282;
-    doc.text('This is a computer generated statement and does not require a physical signature.', 15, footerY);
-    doc.text(`${companyProfile.name.toUpperCase()} ACCOUNTS | Page ${i} of ${pageCount}`, 195, footerY, { align: 'right' });
-    
-    doc.setFontSize(6);
-    doc.text('Confidential Document - For Authorized Use Only', 105, 290, { align: 'center' });
-  }
 
   doc.save(`SR_Statement_${period.replace(/ /g, '_')}.pdf`);
 };
