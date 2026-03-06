@@ -15,7 +15,16 @@ export const supabaseService = {
       .order('transaction_date', { ascending: false });
     
     if (error) throw error;
-    return data as Transaction[];
+    return (data as any[]).map(t => ({
+      id: t.id,
+      name: t.name,
+      particular: t.particular,
+      description: t.description,
+      amount: t.amount,
+      type: t.type,
+      category: t.category,
+      date: t.transaction_date
+    })) as Transaction[];
   },
 
   async saveTransaction(transaction: Transaction) {
@@ -36,6 +45,28 @@ export const supabaseService = {
         category: transaction.category,
         transaction_date: transaction.date
       });
+    
+    if (error) throw error;
+  },
+
+  async saveTransactions(transactions: Transaction[]) {
+    if (!supabase || transactions.length === 0) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from(TABLES.TRANSACTIONS)
+      .upsert(transactions.map(t => ({
+        id: t.id,
+        user_id: user.id,
+        name: t.name,
+        particular: t.particular,
+        description: t.description,
+        amount: t.amount,
+        type: t.type,
+        category: t.category,
+        transaction_date: t.date
+      })));
     
     if (error) throw error;
   },
@@ -109,7 +140,16 @@ export const supabaseService = {
       .single();
     
     if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
-    return data as CompanyProfile | null;
+    if (!data) return null;
+    
+    return {
+      name: data.name,
+      address: data.address,
+      phone: data.phone,
+      email: data.email,
+      taxId: data.tax_id,
+      logoUrl: data.logo_url
+    } as CompanyProfile;
   },
 
   async saveCompanyProfile(profile: CompanyProfile) {
