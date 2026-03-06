@@ -148,7 +148,8 @@ export const supabaseService = {
       phone: data.phone,
       email: data.email,
       taxId: data.tax_id,
-      logoUrl: data.logo_url
+      logoUrl: data.logo_url,
+      logoBase64: data.logo_base64
     } as CompanyProfile;
   },
 
@@ -166,7 +167,8 @@ export const supabaseService = {
         phone: profile.phone,
         email: profile.email,
         tax_id: profile.taxId,
-        logo_url: profile.logoUrl
+        logo_url: profile.logoUrl,
+        logo_base64: profile.logoBase64
       });
     
     if (error) throw error;
@@ -202,6 +204,56 @@ export const supabaseService = {
         is_fingerprint_enabled: settings.isFingerprintEnabled,
         currency_code: currencyCode
       });
+    
+    if (error) throw error;
+  },
+
+  // Team Members
+  async getTeamMembers() {
+    if (!supabase) return [];
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from(TABLES.TEAM_MEMBERS)
+      .select('*')
+      .eq('user_id', user.id);
+    
+    if (error) throw error;
+    return (data as any[]).map(m => ({
+      id: m.id,
+      username: m.username,
+      password: m.password,
+      role: m.role,
+      name: m.name
+    })) as User[];
+  },
+
+  async saveTeamMember(member: User) {
+    if (!supabase) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from(TABLES.TEAM_MEMBERS)
+      .upsert({
+        id: member.id,
+        user_id: user.id,
+        username: member.username,
+        password: member.password,
+        role: member.role,
+        name: member.name
+      });
+    
+    if (error) throw error;
+  },
+
+  async deleteTeamMember(id: string) {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from(TABLES.TEAM_MEMBERS)
+      .delete()
+      .eq('id', id);
     
     if (error) throw error;
   }

@@ -7,7 +7,7 @@ const STORAGE_KEYS = {
 
 export const getSupabaseCredentials = () => {
   const DEFAULT_URL = 'https://rarkvvedhflyodpzczrze.supabase.co';
-  const DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhcmt2dmVkaGZseW9kcHpjcnplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzQyMzIsImV4cCI6MjA4ODMxMDIzMn0.ZJAuSiDNCAgDzF9Wmdn7J63kZG5bVO0R1y8RRTeoNr0';
+  const DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhcmt2dmVkaGZseW9kcHpjcnplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjczNDIzMiwiZXhwIjoyMDg4MzEwMjMyfQ.lZl-RyfD8pfS5cbxyCglJH6yw-vbjxm5cltBnP2h5eA';
   
   const url = import.meta.env.VITE_SUPABASE_URL || localStorage.getItem(STORAGE_KEYS.URL) || DEFAULT_URL;
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY || localStorage.getItem(STORAGE_KEYS.KEY) || DEFAULT_KEY;
@@ -51,5 +51,6 @@ export const TABLES = {
   CONTACTS: 'contacts',
   PROFILES: 'profiles',
   COMPANY_PROFILE: 'company_profile',
-  APP_SETTINGS: 'app_settings'
+  APP_SETTINGS: 'app_settings',
+  TEAM_MEMBERS: 'team_members'
 };
