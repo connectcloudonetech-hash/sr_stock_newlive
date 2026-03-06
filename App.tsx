@@ -166,6 +166,30 @@ const App: React.FC = () => {
       setIsLoading(true);
       console.log('Starting data load...');
       
+      // 1. Load Local Data First (Immediate availability)
+      const savedTransactions = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const savedContacts = localStorage.getItem(CONTACTS_STORAGE_KEY);
+      const savedProfile = localStorage.getItem(COMPANY_PROFILE_STORAGE_KEY);
+      const savedCurrency = localStorage.getItem(CURRENCY_STORAGE_KEY);
+      const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      const savedAllUsers = localStorage.getItem('sr_fintrack_all_users');
+
+      if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
+      else setTransactions(MOCK_TRANSACTIONS);
+
+      if (savedContacts) setContacts(JSON.parse(savedContacts));
+      else setContacts(MOCK_CONTACTS);
+      
+      if (savedProfile) setCompanyProfile(JSON.parse(savedProfile));
+      else setCompanyProfile(DEFAULT_COMPANY_PROFILE);
+
+      if (savedCurrency) setCurrency(JSON.parse(savedCurrency));
+      else setCurrency(DEFAULT_CURRENCY);
+
+      if (savedSettings) setAppSettings(JSON.parse(savedSettings));
+      if (savedAllUsers) setAllUsers(JSON.parse(savedAllUsers));
+
+      // 2. Attempt Cloud Sync
       if (isSupabaseConfigured()) {
         try {
           const { data: { user } } = await supabase!.auth.getUser();
@@ -189,6 +213,7 @@ const App: React.FC = () => {
               profile: !!cloudProfile 
             });
 
+            // Only override local data if cloud data exists
             if (cloudTransactions && cloudTransactions.length > 0) {
               setTransactions(cloudTransactions);
               localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudTransactions));
@@ -221,8 +246,6 @@ const App: React.FC = () => {
                 localStorage.setItem(CURRENCY_STORAGE_KEY, JSON.stringify(foundCurrency));
               }
             }
-            setIsLoading(false);
-            return;
           }
         } catch (error) {
           console.error('Error loading from Supabase:', error);
@@ -231,30 +254,6 @@ const App: React.FC = () => {
       } else {
         console.log('Supabase not configured, using local data');
       }
-
-      // Fallback to local storage or mock data if not logged in
-      const savedTransactions = localStorage.getItem(LOCAL_STORAGE_KEY);
-      const savedContacts = localStorage.getItem(CONTACTS_STORAGE_KEY);
-      const savedProfile = localStorage.getItem(COMPANY_PROFILE_STORAGE_KEY);
-      const savedCurrency = localStorage.getItem(CURRENCY_STORAGE_KEY);
-      const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      const savedAllUsers = localStorage.getItem('sr_fintrack_all_users');
-
-      if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-      else setTransactions(MOCK_TRANSACTIONS);
-
-      if (savedContacts) setContacts(JSON.parse(savedContacts));
-      else setContacts(MOCK_CONTACTS);
-      
-      if (savedProfile) setCompanyProfile(JSON.parse(savedProfile));
-      else setCompanyProfile(DEFAULT_COMPANY_PROFILE);
-
-      if (savedCurrency) setCurrency(JSON.parse(savedCurrency));
-      else setCurrency(DEFAULT_CURRENCY);
-
-      if (savedSettings) setAppSettings(JSON.parse(savedSettings));
-
-      if (savedAllUsers) setAllUsers(JSON.parse(savedAllUsers));
       
       setIsLoading(false);
     };
