@@ -103,6 +103,42 @@ const App: React.FC = () => {
       }
     }
 
+    const savedAllUsers = localStorage.getItem('sr_fintrack_all_users');
+    if (savedAllUsers) {
+      try {
+        setAllUsers(JSON.parse(savedAllUsers));
+      } catch (e) {
+        console.error('Failed to parse local users:', e);
+      }
+    }
+
+    const savedProfile = localStorage.getItem(COMPANY_PROFILE_STORAGE_KEY);
+    if (savedProfile) {
+      try {
+        setCompanyProfile(JSON.parse(savedProfile));
+      } catch (e) {
+        console.error('Failed to parse local profile:', e);
+      }
+    }
+
+    const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (savedSettings) {
+      try {
+        setAppSettings(JSON.parse(savedSettings));
+      } catch (e) {
+        console.error('Failed to parse local settings:', e);
+      }
+    }
+
+    const savedCurrency = localStorage.getItem(CURRENCY_STORAGE_KEY);
+    if (savedCurrency) {
+      try {
+        setCurrency(JSON.parse(savedCurrency));
+      } catch (e) {
+        console.error('Failed to parse local currency:', e);
+      }
+    }
+
     // Supabase Auth Listener
     if (isSupabaseConfigured() && supabase?.auth) {
       try {
@@ -128,12 +164,16 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
+      console.log('Starting data load...');
       
       if (isSupabaseConfigured()) {
         try {
           const { data: { user } } = await supabase!.auth.getUser();
+          console.log('Supabase user:', user?.email || 'Not logged in');
+          
           if (user) {
             setCloudStatus('connected');
+            console.log('Fetching cloud data...');
             const [cloudTransactions, cloudContacts, cloudProfile, cloudSettings, cloudTeam] = await Promise.all([
               supabaseService.getTransactions(),
               supabaseService.getContacts(),
@@ -141,6 +181,13 @@ const App: React.FC = () => {
               supabaseService.getAppSettings(),
               supabaseService.getTeamMembers()
             ]);
+
+            console.log('Cloud data fetched:', { 
+              transactions: cloudTransactions?.length, 
+              contacts: cloudContacts?.length, 
+              team: cloudTeam?.length,
+              profile: !!cloudProfile 
+            });
 
             if (cloudTransactions && cloudTransactions.length > 0) {
               setTransactions(cloudTransactions);
@@ -154,16 +201,25 @@ const App: React.FC = () => {
               setAllUsers(cloudTeam);
               localStorage.setItem('sr_fintrack_all_users', JSON.stringify(cloudTeam));
             }
-            if (cloudProfile) setCompanyProfile(cloudProfile);
+            if (cloudProfile) {
+              setCompanyProfile(cloudProfile);
+              localStorage.setItem(COMPANY_PROFILE_STORAGE_KEY, JSON.stringify(cloudProfile));
+            }
             if (cloudSettings) {
-              setAppSettings({
+              const settings = {
                 appearance: cloudSettings.appearance,
                 appLockPin: cloudSettings.app_lock_pin,
                 isFingerprintEnabled: cloudSettings.is_fingerprint_enabled
-              });
+              };
+              setAppSettings(settings);
+              localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+              
               if (cloudSettings.app_lock_pin) setIsLocked(true);
               const foundCurrency = CURRENCIES.find(c => c.code === cloudSettings.currency_code);
-              if (foundCurrency) setCurrency(foundCurrency);
+              if (foundCurrency) {
+                setCurrency(foundCurrency);
+                localStorage.setItem(CURRENCY_STORAGE_KEY, JSON.stringify(foundCurrency));
+              }
             }
             setIsLoading(false);
             return;
@@ -172,6 +228,8 @@ const App: React.FC = () => {
           console.error('Error loading from Supabase:', error);
           setCloudStatus('error');
         }
+      } else {
+        console.log('Supabase not configured, using local data');
       }
 
       // Fallback to local storage or mock data if not logged in
@@ -202,6 +260,30 @@ const App: React.FC = () => {
       localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(contacts));
     }
   }, [contacts, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(COMPANY_PROFILE_STORAGE_KEY, JSON.stringify(companyProfile));
+    }
+  }, [companyProfile, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(appSettings));
+    }
+  }, [appSettings, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(CURRENCY_STORAGE_KEY, JSON.stringify(currency));
+    }
+  }, [currency, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem('sr_fintrack_all_users', JSON.stringify(allUsers));
+    }
+  }, [allUsers, isLoading]);
 
   // Sync data to Supabase when coming online
   useEffect(() => {
@@ -339,6 +421,7 @@ const App: React.FC = () => {
       await Promise.all([
         ...transactions.map(t => supabaseService.saveTransaction(t)),
         ...contacts.map(c => supabaseService.saveContact(c)),
+        ...allUsers.map(u => supabaseService.saveTeamMember(u)),
         supabaseService.saveCompanyProfile(companyProfile),
         supabaseService.saveAppSettings(appSettings, currency.code)
       ]);
@@ -798,6 +881,8 @@ const App: React.FC = () => {
                 showToast('User removed', 'error'); 
               }} 
               onLogout={handleLogout}
+              onManualSync={handleManualSync}
+              isSyncing={isCloudSyncing}
               onBackup={() => {
                 const data = {
                   transactions,
