@@ -133,14 +133,21 @@ export const supabaseService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
+    console.log('Fetching company profile for user:', user.id);
     const { data, error } = await supabase
       .from(TABLES.COMPANY_PROFILE)
       .select('*')
       .eq('user_id', user.id)
       .single();
     
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
-    if (!data) return null;
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching company profile:', error);
+      throw error;
+    }
+    if (!data) {
+      console.log('No company profile found in cloud');
+      return null;
+    }
     
     return {
       name: data.name,
@@ -158,6 +165,7 @@ export const supabaseService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    console.log('Saving company profile to cloud...', profile.name);
     const { error } = await supabase
       .from(TABLES.COMPANY_PROFILE)
       .upsert({
@@ -171,7 +179,11 @@ export const supabaseService = {
         logo_base64: profile.logoBase64
       });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error saving company profile:', error);
+      throw error;
+    }
+    console.log('Company profile saved successfully');
   },
 
   // App Settings
@@ -214,12 +226,16 @@ export const supabaseService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
+    console.log('Fetching team members for user:', user.id);
     const { data, error } = await supabase
       .from(TABLES.TEAM_MEMBERS)
       .select('*')
       .eq('user_id', user.id);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching team members:', error);
+      throw error;
+    }
     return (data as any[]).map(m => ({
       id: m.id,
       username: m.username,
@@ -234,6 +250,7 @@ export const supabaseService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    console.log('Saving team member to cloud:', member.username);
     const { error } = await supabase
       .from(TABLES.TEAM_MEMBERS)
       .upsert({
@@ -245,7 +262,11 @@ export const supabaseService = {
         name: member.name
       });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error saving team member:', error);
+      throw error;
+    }
+    console.log('Team member saved successfully');
   },
 
   async deleteTeamMember(id: string) {
