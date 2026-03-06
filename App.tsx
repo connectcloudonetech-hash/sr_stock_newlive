@@ -84,6 +84,25 @@ const App: React.FC = () => {
       }
     }
 
+    // Load local data first
+    const savedTransactions = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedTransactions) {
+      try {
+        setTransactions(JSON.parse(savedTransactions));
+      } catch (e) {
+        console.error('Failed to parse local transactions:', e);
+      }
+    }
+
+    const savedContacts = localStorage.getItem(CONTACTS_STORAGE_KEY);
+    if (savedContacts) {
+      try {
+        setContacts(JSON.parse(savedContacts));
+      } catch (e) {
+        console.error('Failed to parse local contacts:', e);
+      }
+    }
+
     // Supabase Auth Listener
     if (isSupabaseConfigured() && supabase?.auth) {
       try {
@@ -122,8 +141,14 @@ const App: React.FC = () => {
               supabaseService.getAppSettings()
             ]);
 
-            if (cloudTransactions) setTransactions(cloudTransactions);
-            if (cloudContacts) setContacts(cloudContacts);
+            if (cloudTransactions && cloudTransactions.length > 0) {
+              setTransactions(cloudTransactions);
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudTransactions));
+            }
+            if (cloudContacts && cloudContacts.length > 0) {
+              setContacts(cloudContacts);
+              localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(cloudContacts));
+            }
             if (cloudProfile) setCompanyProfile(cloudProfile);
             if (cloudSettings) {
               setAppSettings({
@@ -144,9 +169,13 @@ const App: React.FC = () => {
         }
       }
 
-      // Fallback to mock data if not logged in
-      setTransactions(MOCK_TRANSACTIONS);
-      setContacts(MOCK_CONTACTS);
+      // Fallback to local storage or mock data if not logged in
+      const savedTransactions = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const savedContacts = localStorage.getItem(CONTACTS_STORAGE_KEY);
+
+      if (!savedTransactions) setTransactions(MOCK_TRANSACTIONS);
+      if (!savedContacts) setContacts(MOCK_CONTACTS);
+      
       setCurrency(DEFAULT_CURRENCY);
       setCompanyProfile(DEFAULT_COMPANY_PROFILE);
       
@@ -156,25 +185,38 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // Sync transactions to Supabase on every change
+  // Persist to local storage whenever data changes
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(transactions));
+    }
+  }, [transactions, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(contacts));
+    }
+  }, [contacts, isLoading]);
+
+  // Sync data to Supabase when coming online
   useEffect(() => {
     if (isLoading) return;
     
-    if (isSupabaseConfigured() && cloudStatus === 'connected' && transactions.length > 0) {
-      transactions.forEach(t => supabaseService.saveTransaction(t).catch(console.error));
+    if (isSupabaseConfigured() && cloudStatus === 'connected') {
+      // Sync all local data to cloud
+      if (transactions.length > 0) {
+        supabaseService.saveTransactions(transactions).catch(err => {
+          console.error('Error syncing transactions to Supabase:', err);
+          setCloudStatus('error');
+        });
+      }
+      if (contacts.length > 0) {
+        // We could add saveContacts batch too, but let's keep it simple for now or add it later
+        contacts.forEach(c => supabaseService.saveContact(c).catch(console.error));
+      }
     }
-  }, [transactions, isLoading, cloudStatus]);
+  }, [cloudStatus, isLoading]);
 
-  // Sync contacts to Supabase on every change
-  useEffect(() => {
-    if (isLoading) return;
-    
-    if (isSupabaseConfigured() && cloudStatus === 'connected' && contacts.length > 0) {
-      contacts.forEach(c => supabaseService.saveContact(c).catch(console.error));
-    }
-  }, [contacts, isLoading, cloudStatus]);
-
-  // Sync currency and settings to Supabase on every change
   useEffect(() => {
     if (isLoading) return;
     
@@ -356,21 +398,52 @@ const App: React.FC = () => {
   }, [filteredTransactions, transactions]);
 
   const handleAddTransaction = (newT: Omit<Transaction, 'id'>) => {
-    const localT = { ...newT, id: Math.random().toString(36).substr(2, 9) } as Transaction;
-    setTransactions([localT, ...transactions]);
+    const localT = { 
+      ...newT, 
+      id: crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      }) 
+    } as Transaction;
+
+    const updatedTransactions = [localT, ...transactions];
+    setTransactions(updatedTransactions);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTransactions));
+
+    if (isSupabaseConfigured() && cloudStatus === 'connected') {
+      supabaseService.saveTransaction(localT).catch(err => {
+        console.error('Failed to save to Supabase:', err);
+        showToast('Saved locally, sync failed', 'error');
+      });
+    }
+
     setShowAddForm(false);
     showToast('Transaction added successfully');
   };
 
   const handleUpdateTransaction = (updatedT: Transaction) => {
-    setTransactions(transactions.map(t => t.id === updatedT.id ? updatedT : t));
+    const updatedTransactions = transactions.map(t => t.id === updatedT.id ? updatedT : t);
+    setTransactions(updatedTransactions);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTransactions));
+
+    if (isSupabaseConfigured() && cloudStatus === 'connected') {
+      supabaseService.saveTransaction(updatedT).catch(err => {
+        console.error('Failed to update in Supabase:', err);
+        showToast('Updated locally, sync failed', 'error');
+      });
+    }
+
     setEditingTransaction(null);
     setShowAddForm(false);
     showToast('Transaction updated');
   };
 
   const handleDeleteTransaction = (id: string) => {
-    setTransactions(transactions.filter(t => t.id !== id));
+    const updatedTransactions = transactions.filter(t => t.id !== id);
+    setTransactions(updatedTransactions);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTransactions));
+    
     if (isSupabaseConfigured() && cloudStatus === 'connected') {
       supabaseService.deleteTransaction(id).catch(console.error);
     }
@@ -642,10 +715,37 @@ const App: React.FC = () => {
           <div className="animate-slide-up">
             <ContactsPage 
               contacts={contacts}
-              onAddContact={(c) => { setContacts([...contacts, { ...c, id: Math.random().toString(36).substr(2, 9) }]); showToast('Contact added'); }}
-              onUpdateContact={(updated) => { setContacts(contacts.map(c => c.id === updated.id ? updated : c)); showToast('Contact updated'); }}
+              onAddContact={(c) => { 
+                const newId = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+                  const r = Math.random() * 16 | 0;
+                  const v = ch === 'x' ? r : (r & 0x3 | 0x8);
+                  return v.toString(16);
+                });
+                const newContact = { ...c, id: newId };
+                const updatedContacts = [...contacts, newContact];
+                setContacts(updatedContacts); 
+                localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(updatedContacts));
+
+                if (isSupabaseConfigured() && cloudStatus === 'connected') {
+                  supabaseService.saveContact(newContact).catch(console.error);
+                }
+                showToast('Contact added'); 
+              }}
+              onUpdateContact={(updated) => { 
+                const updatedContacts = contacts.map(c => c.id === updated.id ? updated : c);
+                setContacts(updatedContacts); 
+                localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(updatedContacts));
+
+                if (isSupabaseConfigured() && cloudStatus === 'connected') {
+                  supabaseService.saveContact(updated).catch(console.error);
+                }
+                showToast('Contact updated'); 
+              }}
               onRemoveContact={(id) => { 
-                setContacts(contacts.filter(c => c.id !== id)); 
+                const updatedContacts = contacts.filter(c => c.id !== id);
+                setContacts(updatedContacts); 
+                localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(updatedContacts));
+                
                 if (isSupabaseConfigured() && cloudStatus === 'connected') {
                   supabaseService.deleteContact(id).catch(console.error);
                 }
