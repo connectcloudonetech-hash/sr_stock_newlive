@@ -4,7 +4,7 @@ import {
   Palette, Lock, LifeBuoy, ChevronRight, Download, 
   Trash2, Sun, Moon, Monitor, Fingerprint, Grid3X3,
   ArrowLeft, Save, Shield, LogOut, Mail, Phone, Globe,
-  Cloud, CloudOff
+  Cloud, CloudOff, RefreshCw
 } from 'lucide-react';
 import { User, UserRole, Currency, CompanyProfile, AppSettings } from '../types';
 import AdminPage from './AdminPage';
@@ -27,6 +27,8 @@ interface SettingsPageProps {
   onAddUser: (user: Omit<User, 'id'>) => void;
   onRemoveUser: (id: string) => void;
   onLogout: () => void;
+  onManualSync?: () => void;
+  isSyncing?: boolean;
 }
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ 
@@ -43,7 +45,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   onDeleteAllData,
   onAddUser,
   onRemoveUser,
-  onLogout
+  onLogout,
+  onManualSync,
+  isSyncing
 }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [tempProfile, setTempProfile] = useState<CompanyProfile>(companyProfile);
@@ -561,6 +565,15 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
               {isSupabaseConfigured() && (
                 <div className="space-y-6 text-left">
+                  <button 
+                    onClick={onManualSync}
+                    disabled={isSyncing}
+                    className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                    {isSyncing ? 'Syncing...' : 'Sync All Data Now'}
+                  </button>
+
                   {supabaseUser ? (
                     <button 
                       onClick={async () => {
