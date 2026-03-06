@@ -46,6 +46,7 @@ const App: React.FC = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [transactionsToExport, setTransactionsToExport] = useState<Transaction[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [initialType, setInitialType] = useState<TransactionType>(TransactionType.EXPENSE);
   const [isFabOpen, setIsFabOpen] = useState(false);
@@ -759,7 +760,14 @@ const App: React.FC = () => {
                 <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">History</h1>
                 <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Transaction Ledger</p>
               </div>
-              <button onClick={() => setIsExportModalOpen(true)} disabled={transactions.length === 0} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white shadow-sm disabled:opacity-30">
+              <button 
+                onClick={() => {
+                  setTransactionsToExport(filteredTransactions);
+                  setIsExportModalOpen(true);
+                }} 
+                disabled={transactions.length === 0} 
+                className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white shadow-sm disabled:opacity-30"
+              >
                 <Download size={20} />
               </button>
             </header>
@@ -809,7 +817,10 @@ const App: React.FC = () => {
           <div className="animate-slide-up">
             <ReportPage 
               transactions={transactions} 
-              onExport={() => setIsExportModalOpen(true)}
+              onExport={(data) => {
+                setTransactionsToExport(data);
+                setIsExportModalOpen(true);
+              }}
               currencySymbol={currency.symbol}
               companyName={companyProfile.name}
             />
@@ -1091,7 +1102,7 @@ const App: React.FC = () => {
       <ExportModal 
         isOpen={isExportModalOpen} 
         onClose={() => setIsExportModalOpen(false)} 
-        transactions={filteredTransactions} 
+        transactions={transactionsToExport} 
         currency={currency}
         companyProfile={companyProfile}
       />
