@@ -226,7 +226,7 @@ const ReportPage: React.FC<ReportPageProps> = ({ transactions, onExport, currenc
           </div>
           <div>
             <p className="text-emerald-700/60 dark:text-emerald-400/60 font-black text-[9px] uppercase tracking-widest mb-0.5">Cash In</p>
-            <h3 className="text-xl font-black text-emerald-900 dark:text-emerald-400">{currencySymbol}{stats.income.toLocaleString()}</h3>
+            <h3 className="text-xl font-black text-emerald-900 dark:text-emerald-400">{currencySymbol}{(stats.income / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}</h3>
           </div>
         </div>
 
@@ -236,7 +236,7 @@ const ReportPage: React.FC<ReportPageProps> = ({ transactions, onExport, currenc
           </div>
           <div>
             <p className="text-rose-700/60 dark:text-rose-400/60 font-black text-[9px] uppercase tracking-widest mb-0.5">Cash Out</p>
-            <h3 className="text-xl font-black text-rose-900 dark:text-rose-400">{currencySymbol}{stats.expense.toLocaleString()}</h3>
+            <h3 className="text-xl font-black text-rose-900 dark:text-rose-400">{currencySymbol}{(stats.expense / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}</h3>
           </div>
         </div>
 
@@ -246,7 +246,7 @@ const ReportPage: React.FC<ReportPageProps> = ({ transactions, onExport, currenc
           </div>
           <div>
             <p className="text-slate-400 dark:text-slate-500 font-black text-[9px] uppercase tracking-widest mb-0.5">Net Flow</p>
-            <h3 className="text-xl font-black text-white">{currencySymbol}{stats.balance.toLocaleString()}</h3>
+            <h3 className="text-xl font-black text-white">{currencySymbol}{(stats.balance / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}</h3>
           </div>
         </div>
       </div>
@@ -281,7 +281,7 @@ const ReportPage: React.FC<ReportPageProps> = ({ transactions, onExport, currenc
                 </div>
                 <div className="text-right">
                   <p className={`font-black text-base ${t.type === TransactionType.INCOME ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                    {currencySymbol}{t.amount.toLocaleString()}
+                    {currencySymbol}{(t.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}
                   </p>
                 </div>
               </div>

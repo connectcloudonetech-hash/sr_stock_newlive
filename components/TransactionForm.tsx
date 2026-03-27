@@ -183,8 +183,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           </div>
           <input
             type="number"
-            step="0.01"
-            placeholder="0.00"
+            step="1"
+            placeholder="0"
             className="w-full pl-10 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-50 dark:border-slate-800 focus:border-slate-900 dark:focus:border-white focus:bg-white dark:focus:bg-slate-900 rounded-2xl text-2xl font-black text-slate-900 dark:text-white transition-all placeholder:text-slate-200 dark:placeholder:text-slate-700 outline-none"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}

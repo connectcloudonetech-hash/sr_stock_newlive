@@ -58,13 +58,13 @@ export const generateFinancialPDF = (transactions: Transaction[], options: PDFEx
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(16, 185, 129); // Emerald 600
-  doc.text(`${currencyCode} ${stats.income.toLocaleString()}`, 25, 72);
+  doc.text(`${currencyCode} ${(stats.income / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}`, 25, 72);
   
   doc.setTextColor(227, 30, 36); // SR Red
-  doc.text(`${currencyCode} ${stats.expense.toLocaleString()}`, 85, 72);
+  doc.text(`${currencyCode} ${(stats.expense / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}`, 85, 72);
   
   doc.setTextColor(15, 23, 42); // Slate 900
-  doc.text(`${currencyCode} ${stats.balance.toLocaleString()}`, 145, 72);
+  doc.text(`${currencyCode} ${(stats.balance / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}`, 145, 72);
 
   // 1. Main Transaction Table
   const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -74,8 +74,8 @@ export const generateFinancialPDF = (transactions: Transaction[], options: PDFEx
     t.name,
     t.particular,
     t.description || '',
-    t.type === TransactionType.INCOME ? t.amount.toLocaleString() : '',
-    t.type === TransactionType.EXPENSE ? t.amount.toLocaleString() : ''
+    t.type === TransactionType.INCOME ? (t.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }) : '',
+    t.type === TransactionType.EXPENSE ? (t.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }) : ''
   ]);
 
   autoTable(doc, {
@@ -134,9 +134,9 @@ export const generateFinancialPDF = (transactions: Transaction[], options: PDFEx
 
   const categoryTableData = Object.entries(categorySummaryMap).map(([cat, data]) => [
     cat,
-    data.income > 0 ? data.income.toLocaleString() : '',
-    data.expense > 0 ? data.expense.toLocaleString() : '',
-    (data.income - data.expense).toLocaleString()
+    data.income > 0 ? (data.income / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }) : '',
+    data.expense > 0 ? (data.expense / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }) : '',
+    ((data.income - data.expense) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })
   ]);
 
   doc.setFontSize(10);
@@ -189,9 +189,9 @@ export const generateFinancialPDF = (transactions: Transaction[], options: PDFEx
 
   const entityTableData = Object.entries(entitySummaryMap).map(([name, data]) => [
     name,
-    data.income > 0 ? data.income.toLocaleString() : '',
-    data.expense > 0 ? data.expense.toLocaleString() : '',
-    (data.income - data.expense).toLocaleString()
+    data.income > 0 ? (data.income / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }) : '',
+    data.expense > 0 ? (data.expense / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }) : '',
+    ((data.income - data.expense) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })
   ]);
 
   doc.setFontSize(10);

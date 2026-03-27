@@ -738,7 +738,7 @@ const App: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <p className={`font-black text-base ${t.type === TransactionType.INCOME ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                        {currency.symbol}{t.amount.toLocaleString()}
+                        {currency.symbol}{(t.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}
                       </p>
                     </div>
                   </div>
@@ -798,7 +798,7 @@ const App: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <p className={`font-black text-base ${t.type === TransactionType.INCOME ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                        {currency.symbol}{t.amount.toLocaleString()}
+                        {currency.symbol}{(t.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}
                       </p>
                     </div>
                   </div>

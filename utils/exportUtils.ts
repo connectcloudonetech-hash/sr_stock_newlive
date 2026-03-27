@@ -20,9 +20,9 @@ export const downloadTransactionsAsExcel = (transactions: Transaction[], currenc
     ['Generated on:', new Date().toLocaleString()],
     [],
     ['SUMMARY'],
-    ['Total Income', totalIncome.toFixed(2)],
-    ['Total Expense', totalExpense.toFixed(2)],
-    ['Net Balance', netBalance.toFixed(2)],
+    ['Total Income', (totalIncome / 100).toFixed(2)],
+    ['Total Expense', (totalExpense / 100).toFixed(2)],
+    ['Net Balance', (netBalance / 100).toFixed(2)],
     [],
     ['TRANSACTION DETAILS'],
     ['Date', 'Entity Name', 'Particular', 'Category', 'Type', `Amount (${currencyCode})`]
@@ -36,7 +36,7 @@ export const downloadTransactionsAsExcel = (transactions: Transaction[], currenc
     t.particular,
     t.category,
     t.type.toUpperCase(),
-    t.amount
+    (t.amount / 100).toFixed(2)
   ]);
 
   const worksheetData = [...header, ...rows];

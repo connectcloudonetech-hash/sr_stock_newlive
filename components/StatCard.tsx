@@ -35,7 +35,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, amount, type, currencySymbol
         <div className="flex items-baseline gap-0.5">
           <span className="text-slate-900 dark:text-white font-black text-lg">{currencySymbol}</span>
           <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-            {Math.abs(amount).toLocaleString()}
+            {(Math.abs(amount) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })}
           </h3>
         </div>
       </div>
